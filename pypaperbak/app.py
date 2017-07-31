@@ -107,23 +107,23 @@ class PyPaperbakApp:
         inputhash = hashlib.sha256() if args.sha256 else None
         framedata = self.frame_data_func(args)
 
-        totalqr = infile_size / chunksize + 1
+        qr_count = infile_size / chunksize + 1
         self.logger.info('Original file size: %dKiB', infile_size / 1024)
-        self.logger.info('Total number of QR codes: %d', totalqr)        
+        self.logger.info('Total number of QR codes: %d', qr_count)        
 
-        exporter = self.setup_exporter(args)
+        exporter = self.setup_exporter(args, qr_count)
 
-        qrnumber = 0
+        qr_number = 0
         sizesofar = 0
         while True:
             bindata = infile.read(chunksize)
             if not bindata: break
-            frame = framedata(bindata, qrnumber, sizesofar)
+            frame = framedata(bindata, qr_count, sizesofar)
             if inputhash is not None: inputhash.update(bindata)
             sizesofar += len(bindata)
 
-            qrnumber += 1
-            self.logger.info('Exporting QR %d of %d', qrnumber, totalqr)
+            qr_number += 1
+            self.logger.info('Exporting QR %d of %d', qr_number, qr_count)
             
             encdata = encodefunc(frame).decode()            
             qr = pyqrcode.create(encdata)
@@ -174,7 +174,7 @@ class PyPaperbakApp:
             print('SHA-256 of output: %s' % hashfunc.hexdigest())        
         
 
-    def setup_exporter(self, args):
+    def setup_exporter(self, args, qr_count):
         """Setup the exporter according to the specified args."""
         if args.exporter == 'pngdir':
             self.logger.info('Setting up PngDirExporter')
@@ -182,7 +182,7 @@ class PyPaperbakApp:
                                  args.pngscale)
         elif args.exporter == 'pdf':
             self.logger.info('Setting up PDFExporter')
-            exp = PDFExporter(args.outfile)
+            exp = PDFExporter(args.outfile, qr_count)
         else:
             raise Exception("Unimplemented exporter type: %s" % args.exporter)
 

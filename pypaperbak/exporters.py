@@ -42,14 +42,17 @@ class PngDirExporter():
 
 class PDFExporter():
     """Exports the set of QR codes as a PDF file."""
-    def __init__(self, fname):
+    def __init__(self, fname, qr_count):
         self.pdf = FPDF()
         self.fname = fname
-        self.qrnumber = 0
+        self.qr_number = 0
+        self.qr_count = qr_count        
 
         self.pdf.set_font('Arial', '', 10)
         self.pdf.set_creator('PyPaperBak - https://github.com/matheusd/pypaperbak')
         self.pdf.set_title('PyPaperBak Document')
+        self.pdf.set_margins(1, 1, 1)
+        self.pdf.set_auto_page_break(False)
 
         self.tmpfilenames = dict()
 
@@ -57,23 +60,35 @@ class PDFExporter():
         self.format = 'A4'
         page_width = 210
         page_height = 297
+        bottom_margin = 15 # margin at the bottom of page for the comments
         self.qr_margin = 5
         self.qr_per_row = 3
         self.qr_rows_per_page = 5
         self.qr_per_page = self.qr_per_row * self.qr_rows_per_page
+        self.qr_total_pages = self.qr_count / self.qr_per_page + 1
 
         # to discover the size, calculate the minimum size to fit as
         # many requested QR's per row and page, giving a 
         # margin at each end and between the codes
         self.qr_size = min( (page_width - self.qr_per_row*self.qr_margin - self.qr_margin) / self.qr_per_row,
-                            (page_height - self.qr_rows_per_page*self.qr_margin - self.qr_margin) / self.qr_rows_per_page  )        
+                            (page_height - self.qr_rows_per_page*self.qr_margin - self.qr_margin - bottom_margin) / self.qr_rows_per_page  )        
                        
+
         self.qr_margin_x = (page_width - self.qr_size*self.qr_per_row) / (self.qr_per_row+1)
-        self.qr_margin_y = (page_height - self.qr_size*self.qr_rows_per_page) / (self.qr_rows_per_page+1)
+        self.qr_margin_y = (page_height - bottom_margin - self.qr_size*self.qr_rows_per_page) / (self.qr_rows_per_page+1)
+        
+        self.page_util_width = (page_width - self.qr_margin_x*2)        
+        print(self.page_util_width)
 
     def add_qr(self, qr):        
-        if (self.qrnumber % self.qr_per_page) == 0:            
+        if (self.qr_number % self.qr_per_page) == 0:            
             self.pdf.add_page()
+            self.pdf.set_xy(self.qr_margin_x, -10)        
+            self.pdf.write(0, 'Made by PyPaperBak', 'https://github.com/matheusd/pypaperbak')
+            page_nb = self.qr_number / self.qr_per_page + 1            
+            self.pdf.set_xy(self.qr_margin_x, -10)
+            self.pdf.cell(self.page_util_width, 0, 'Page %d of %d' % (page_nb, self.qr_total_pages),
+                         align='R')
 
         while True:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as file:
@@ -84,7 +99,7 @@ class PDFExporter():
         self.tmpfilenames[tmpname] = True
         qr.png(tmpname, scale=6)
         
-        idxinpage = self.qrnumber % self.qr_per_page
+        idxinpage = self.qr_number % self.qr_per_page
         col = idxinpage % self.qr_per_row
         row = int(idxinpage / self.qr_per_row) 
         size = self.qr_size
@@ -99,11 +114,11 @@ class PDFExporter():
                 size)                                # height
         os.unlink(tmpname)        
 
-        self.qrnumber += 1
+        self.qr_number += 1
     
 
     def finish(self, inputhash):
         """Finish exporting the pdf."""
-        self.pdf.set_xy(self.qr_margin_x, -22)        
-        self.pdf.write(0, 'Hash of original document: %s' % inputhash.hexdigest())
+        self.pdf.set_xy(self.qr_margin_x, -15)        
+        self.pdf.write(0, 'Hash of original document: %s' % inputhash.hexdigest())                
         self.pdf.output(self.fname)
