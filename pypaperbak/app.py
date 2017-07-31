@@ -40,7 +40,7 @@ class PyPaperbakApp:
                             nargs='?',
                             metavar='OUTFILE') 
         parser.add_argument('--exporter', 
-                            choices=['pngdir', 'pngzip'],
+                            choices=['pngdir', 'pdf'],
                             default='pngdir',
                             help='Exporter type. Options: {%(choices)s}. Default: %(default)s',
                             metavar='EXPORTER')      
@@ -129,7 +129,7 @@ class PyPaperbakApp:
             qr = pyqrcode.create(encdata)
             exporter.add_qr(qr)
                     
-        exporter.finish()
+        exporter.finish(inputhash)
         self.logger.info('Finished exporting')
         if inputhash is not None: 
             print('SHA-256 of input: %s' % inputhash.hexdigest())
@@ -180,6 +180,9 @@ class PyPaperbakApp:
             self.logger.info('Setting up PngDirExporter')
             exp = PngDirExporter(args.outfile, args.baseoutfname,
                                  args.pngscale)
+        elif args.exporter == 'pdf':
+            self.logger.info('Setting up PDFExporter')
+            exp = PDFExporter(args.outfile)
         else:
             raise Exception("Unimplemented exporter type: %s" % args.exporter)
 
@@ -204,6 +207,9 @@ class PyPaperbakApp:
             position = int.from_bytes(bindata[1:5], 'big')
             crcframe = int.from_bytes(bindata[-4:], 'big')
             crccalc = binascii.crc32(bindata[0:-4])
+            # the crc is mostly unecessary when using qrcodes
+            # this is mostly to make sure we're not reading a qr
+            # code that is *not* a pypaperbak code.
             if crccalc != crcframe:
                 raise UnframeError("CRC Checksum match error")
             return bindata[5:-4], position
