@@ -6,10 +6,15 @@ import logging
 import os
 import zbarlight
 import hashlib
+import magic
+import binascii
 
 from pypaperbak.exporters import *
 from pypaperbak.importers import *
 
+
+class UnframeError(Exception):
+    pass
 
 class PyPaperbakApp:
 
@@ -99,7 +104,8 @@ class PyPaperbakApp:
         infile = open(args.infile, "rb")
         outfile = args.outfile        
         infile_size = os.path.getsize(infile.name)
-        hashfunc = hashlib.sha256() if args.sha256 else None
+        inputhash = hashlib.sha256() if args.sha256 else None
+        framedata = self.frame_data_func(args)
 
         totalqr = infile_size / chunksize + 1
         self.logger.info('Original file size: %dKiB', infile_size / 1024)
@@ -108,48 +114,64 @@ class PyPaperbakApp:
         exporter = self.setup_exporter(args)
 
         qrnumber = 0
+        sizesofar = 0
         while True:
             bindata = infile.read(chunksize)
             if not bindata: break
-            if hashfunc is not None: hashfunc.update(bindata)
+            frame = framedata(bindata, qrnumber, sizesofar)
+            if inputhash is not None: inputhash.update(bindata)
+            sizesofar += len(bindata)
 
             qrnumber += 1
             self.logger.info('Exporting QR %d of %d', qrnumber, totalqr)
             
-            encdata = encodefunc(bindata).decode()            
+            encdata = encodefunc(frame).decode()            
             qr = pyqrcode.create(encdata)
             exporter.add_qr(qr)
                     
         exporter.finish()
         self.logger.info('Finished exporting')
-        if hashfunc is not None: 
-            print('SHA-256 of input: %s' % hashfunc.hexdigest())
+        if inputhash is not None: 
+            print('SHA-256 of input: %s' % inputhash.hexdigest())
 
     def run_restore(self, args): 
-        """Run the restore operation."""
-
-        hashfunc = hashlib.sha256() if args.sha256 else None
+        """Run the restore operation."""        
 
         if os.path.isdir(args.infile):
             self.logger.info('Setting up PngDirImporter')
             importer = PngDirImporter(args.infile, 
                                       args.fnamepattern)
         else:
-            raise Exception('Could not detect import type of file %s' % args.infile)
+            m = magic.Magic(mime=True, uncompress=True)
+            ftype = m.from_file(args.infile)
+            if ftype == "image/png":
+                importer = ImageImporter(args.infile)
+            else:
+                raise Exception('Could not detect import type of file %s' % args.infile)
 
         decodefunc = base64.b85decode #FIXME: add arg        
     
         with open(args.outfile, "wb") as outfile:
             for image in importer:
-                encdata = zbarlight.scan_codes('qrcode', image)                
-                bindata = decodefunc(encdata[0])
-                outfile.write(bindata)
-                if hashfunc is not None: hashfunc.update(bindata)
-
-
+                encdatalist = zbarlight.scan_codes('qrcode', image)                
+                for encdata in encdatalist:
+                    frame = decodefunc(encdata)
+                    bindata, position = self.unframe_data(frame)                    
+                    outfile.seek(position)
+                    outfile.write(bindata)
+        
         self.logger.info('Finished importing')
-        if hashfunc is not None: 
-            print('SHA-256 of output: %s' % hashfunc.hexdigest())
+
+        # Cant calculate during writing because we may be reading pieces
+        # out of order
+        if args.sha256:
+            hashfunc = hashlib.sha256()
+            with open(args.outfile, "rb") as outfile:
+                while True:
+                    data = outfile.read()
+                    if not data: break
+                    hashfunc.update(data)
+            print('SHA-256 of output: %s' % hashfunc.hexdigest())        
         
 
     def setup_exporter(self, args):
@@ -162,3 +184,28 @@ class PyPaperbakApp:
             raise Exception("Unimplemented exporter type: %s" % args.exporter)
 
         return exp
+
+    def frame_data_func(self, args):
+        """Prepare function that frames the data for a single qr code."""
+        def v1(bindata, qrnumber, sizesofar):
+            header = bytes([0xb1]) + sizesofar.to_bytes(4, 'big')
+            crcheader = binascii.crc32(header)
+            footer = binascii.crc32(bindata, crcheader).to_bytes(4, 'big')
+            return header + bindata + footer
+
+        
+        return v1
+
+    def unframe_data(self, bindata):        
+        if (bindata[0] & 0xb0) != 0xb0:
+            raise UnframeError("Binary data without magic number")
+        version = bindata[0] & 0xf
+        if version == 1:
+            position = int.from_bytes(bindata[1:5], 'big')
+            crcframe = int.from_bytes(bindata[-4:], 'big')
+            crccalc = binascii.crc32(bindata[0:-4])
+            if crccalc != crcframe:
+                raise UnframeError("CRC Checksum match error")
+            return bindata[5:-4], position
+        else:
+            raise UnframeError("Unrecognized frame version: %d" % version)

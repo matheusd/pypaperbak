@@ -37,3 +37,21 @@ class PngDirImporter:
 
 
     
+
+class ImageImporter:
+    """Importer that loads from a single image file."""
+    def __init__(self, fname):
+        self.fname = fname
+    
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.fname is None:
+            raise StopIteration()
+
+        with open(self.fname, 'rb') as image_file:
+            image = Image.open(image_file)
+            image.load()
+        self.fname = None
+        return image        
