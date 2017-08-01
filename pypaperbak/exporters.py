@@ -77,8 +77,7 @@ class PDFExporter():
         self.qr_margin_x = (page_width - self.qr_size*self.qr_per_row) / (self.qr_per_row+1)
         self.qr_margin_y = (page_height - bottom_margin - self.qr_size*self.qr_rows_per_page) / (self.qr_rows_per_page+1)
         
-        self.page_util_width = (page_width - self.qr_margin_x*2)        
-        print(self.page_util_width)
+        self.page_util_width = (page_width - self.qr_margin_x*2)                
 
     def add_qr(self, qr):        
         if (self.qr_number % self.qr_per_page) == 0:            

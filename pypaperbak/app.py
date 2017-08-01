@@ -8,10 +8,11 @@ import zbarlight
 import hashlib
 import magic
 import binascii
+import sys
 
 from pypaperbak.exporters import *
 from pypaperbak.importers import *
-
+import pypaperbak
 
 class UnframeError(Exception):
     pass
@@ -27,7 +28,9 @@ class PyPaperbakApp:
         """Returns the argparse instance with a description 
         of the apps arguments."""
         parser = argparse.ArgumentParser(                
-                description='Backup and restore from paper-backed datastore')
+                description='Backup and restore from paper-backed datastore',
+                prog='pypaperbak',
+                epilog='%(prog)s available at https://github.com/matheusd/pypaperbak')
         parser.add_argument('action', choices=['backup', 'restore'], 
                             help='Action to perform ("backup" or "restore")',
                             metavar='ACTION')
@@ -69,9 +72,10 @@ class PyPaperbakApp:
                             help='On backup, print the sha256 of the input file. On restore, print the sha256 of the restored file.')
         parser.add_argument('-v', '--verbose', 
                             action='store_true',
-                            help='Generate verbose diagnostic to stderr')      
-        
-                            
+                            help='Generate verbose diagnostic to stderr')              
+        parser.add_argument('--version',
+                            action='version', 
+                            version='%(prog)s ' + ('%s' % pypaperbak.__version__))
         return parser
 
        
@@ -102,8 +106,9 @@ class PyPaperbakApp:
         encodefunc = base64.b85encode #FIXME: add arg        
         
         infile = open(args.infile, "rb")
-        outfile = args.outfile        
         infile_size = os.path.getsize(infile.name)
+
+        outfile = args.outfile        
         inputhash = hashlib.sha256() if args.sha256 else None
         framedata = self.frame_data_func(args)
 
