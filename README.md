@@ -23,9 +23,10 @@ Download and extract one of the releases or download the python source code and 
 
 Using `--sha256` prints the hash of the input (on backup) or output (on restore) file.
 
+```shell
   $ pypaperbak --sha256 --exporter pdf backup samples/medium.txt output.pdf
   $ pypaperbak --sha256 --fnamepattern *.jpg restore scanned-images/ restored.txt
-
+```
 
 
 ## Technical Aspects
@@ -47,34 +48,39 @@ The restore action performs the operations in reverse.
 
 Generate a pdf file from medium.txt:
 
+```shell
   $ pypaperbak --sha256 --exporter pdf backup samples/medium.txt output.pdf
   Finished Exporting
   SHA-256 of input: b33d0c46df78715005bcc28db070a63e938b4e3ce4052365fc5714b321f498f3
-
+```
 
 Extract the images from the pdf (requires `pdfimages`/`poppler-utils`) and verify generation:
   
+```shell
   $ pdfimages -png output.pdf imgs-pdf/
   
   $ pypaperbak -v --sha256 --fnamepattern *.png restore imgs-pdf/ restored.txt
   Finished importing
   SHA-256 of output: b33d0c46df78715005bcc28db070a63e938b4e3ce4052365fc5714b321f498f3
-
+```
 
 Convert the pdf to one jpg per page and import (requires `convert`/`ghostscript`):
 
+```shell
   $ convert -quality 90 -density 200x200 output.pdf imgs-single/single%d.jpg
 
   $ pypaperbak -v --sha256 --fnamepattern *.jpg restore imgs-single/ restored.txt
   Finished importing
   SHA-256 of output: b33d0c46df78715005bcc28db070a63e938b4e3ce4052365fc5714b321f498f3
-
+```
 
 Restore from a single png image:
 
+```shell
   $ openssl sha256 samples/small.txt
   SHA256(samples/small.txt)= d51c36f2a07e7311e1d5b79d1dc16f9e5c07b116cb65b42a2b45992ccd0b29ca
 
   $ pypaperbak -v --sha256  restore samples/damaged-small.png restored.txt
   Finished importing
   SHA-256 of output: d51c36f2a07e7311e1d5b79d1dc16f9e5c07b116cb65b42a2b45992ccd0b29ca
+```
