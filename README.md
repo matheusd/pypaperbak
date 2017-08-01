@@ -14,6 +14,11 @@ The restore operation works in reverse: reads the QR codes from a single or a se
   - Backing up seed files from crypto wallets
 
 
+## Installation
+
+Download and extract one of the releases or download the python source code and execute.
+
+
 ## Basic Usage
 
 Using `--sha256` prints the hash of the input (on backup) or output (on restore) file.

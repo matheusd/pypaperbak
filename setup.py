@@ -39,7 +39,8 @@ setup(name='pypaperbak',
           'pyqrcode', 
           'zbarlight',
           'fpdf',
-          'python-magic'
+          'python-magic',
+          'pypng'
       ],
       classifiers = [
             "Development Status :: 5 - Production/Stable",

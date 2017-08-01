@@ -109,7 +109,7 @@ class PyPaperbakApp:
         infile_size = os.path.getsize(infile.name)
 
         outfile = args.outfile        
-        inputhash = hashlib.sha256() if args.sha256 else None
+        inputhash = hashlib.sha256() 
         framedata = self.frame_data_func(args)
 
         qr_count = infile_size / chunksize + 1
@@ -124,7 +124,7 @@ class PyPaperbakApp:
             bindata = infile.read(chunksize)
             if not bindata: break
             frame = framedata(bindata, qr_count, sizesofar)
-            if inputhash is not None: inputhash.update(bindata)
+            inputhash.update(bindata)
             sizesofar += len(bindata)
 
             qr_number += 1
@@ -136,7 +136,7 @@ class PyPaperbakApp:
                     
         exporter.finish(inputhash)
         self.logger.info('Finished exporting')
-        if inputhash is not None: 
+        if args.sha256: 
             print('SHA-256 of input: %s' % inputhash.hexdigest())
 
     def run_restore(self, args): 
