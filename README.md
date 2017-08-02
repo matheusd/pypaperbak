@@ -13,6 +13,11 @@ The restore operation works in reverse: reads the QR codes from a single or a se
   - Backing up [KeePassX](https://www.keepassx.org/) files
   - Backing up seed files from crypto wallets
 
+## Storage Capacity
+
+Storage capacity for a single A4 leaf is 15 QR Codes, each storing 256 bits of the original file, for a grand total of *3840 bytes per page*.
+
+In the current version (v1.0.0) these values are hard coded but on a future version they may be modifiable by command line arguments.
 
 ## Installation
 
